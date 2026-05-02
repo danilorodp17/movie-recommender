@@ -1,0 +1,14 @@
+# Dataset
+backend/data/
+
+# Ambiente virtual
+venv/
+__pycache__/
+*.pyc
+.env
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
