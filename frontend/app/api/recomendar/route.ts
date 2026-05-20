@@ -1,29 +1,42 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    const systemPrompt = `Você é um especialista em cinema. Responda SEMPRE em JSON válido com este formato:
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content: `Você é um especialista em cinema. Responda SEMPRE em JSON válido com este formato:
 {
-  "texto": "frase curta apresentando as recomendações",
+  "texto": "frase curta e calorosa apresentando as recomendações",
   "filmes": [
     {
       "title": "Nome do Filme (Ano)",
       "genres": "Genero1|Genero2",
-      "reason": "Por que esse filme é perfeito (1 frase)"
+      "reason": "Por que esse filme é perfeito para o pedido (1 frase)"
     }
   ]
 }
-Recomende 4 filmes. Responda APENAS o JSON, sem markdown, sem texto adicional.`;
+Recomende 4 filmes. Responda APENAS o JSON, sem markdown, sem texto adicional.`
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
 
-    const result = await model.generateContent(`${systemPrompt}\n\nPedido do usuário: ${prompt}`);
-    const text = result.response.text();
+    const text = response.choices[0]?.message?.content || "";
     const clean = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean);
     return NextResponse.json(parsed);
