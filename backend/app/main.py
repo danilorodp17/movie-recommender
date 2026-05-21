@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api.routes import router
+from app.api.routes import router as rec_router
+from app.api.auth_routes import router as auth_router
 from app.ml.recommender import recommender
+from app.models.database import create_tables
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    create_tables()
     recommender.carregar_modelo()
     yield
 
@@ -24,7 +27,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix="/api/v1")
+app.include_router(rec_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
