@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Movie Recommender",
-  description: "Sistema de recomendação de filmes com IA",
+  title: "CineMatch",
+  description: "Descoberta cinematográfica com IA",
 };
 
 export default function RootLayout({
