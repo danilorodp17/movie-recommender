@@ -71,3 +71,23 @@ def get_historico(
     return db.query(Historico).filter(
         Historico.user_id == current_user.id
     ).order_by(Historico.created_at.desc()).all()
+
+@router.post("/auth/reset-password")
+def reset_password(data: dict, db: Session = Depends(get_db)):
+    email = data.get("email")
+    nova_senha = data.get("nova_senha")
+    
+    if not email or not nova_senha:
+        raise HTTPException(status_code=400, detail="Email e nova senha são obrigatórios")
+    
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Email não encontrado")
+    
+    if len(nova_senha) < 6:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
+    
+    user.hashed_password = hash_password(nova_senha)
+    db.commit()
+    
+    return {"message": "Senha alterada com sucesso"}

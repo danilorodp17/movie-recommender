@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Film, MessageCircle, ClipboardList, Send, Loader2,
-  RotateCcw, LogOut, Clock, User, X, ChevronRight,
-  Sparkles, History, Star
+  LogOut, X, ChevronRight, Sparkles, History
 } from "lucide-react";
 
 interface Filme { title: string; genres: string; reason: string; }
@@ -43,7 +42,7 @@ async function pedirRecomendacao(prompt: string) {
 
 export default function App() {
   const [tela, setTela] = useState<"auth" | "home" | "quiz" | "chat">("auth");
-  const [authMode, setAuthMode] = useState<"login" | "cadastro">("login");
+  const [authMode, setAuthMode] = useState<"login" | "cadastro" | "reset">("login");
   const [user, setUser] = useState<UserData | null>(null);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [authError, setAuthError] = useState("");
@@ -78,6 +77,21 @@ export default function App() {
       setTela("home");
     } catch {
       setAuthError(authMode === "login" ? "Email ou senha incorretos" : "Erro ao criar conta. Tente outro email.");
+    } finally { setAuthLoading(false); }
+  }
+
+  async function handleReset() {
+    setAuthError(""); setAuthLoading(true);
+    try {
+      await apiRequest("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email, nova_senha: form.password })
+      });
+      setAuthMode("login");
+      setForm({ ...form, password: "" });
+      alert("Senha alterada com sucesso! Faça login com a nova senha.");
+    } catch {
+      setAuthError("Email não encontrado. Verifique e tente novamente.");
     } finally { setAuthLoading(false); }
   }
 
@@ -189,27 +203,47 @@ export default function App() {
           </div>
 
           <h3 style={{ fontSize: "22px", fontWeight: 700, marginBottom: "8px" }}>
-            {authMode === "login" ? "Bem-vindo de volta" : "Criar sua conta"}
+            {authMode === "login" ? "Bem-vindo de volta" : authMode === "cadastro" ? "Criar sua conta" : "Redefinir senha"}
           </h3>
           <p style={{ fontSize: "14px", color: "var(--text2)", marginBottom: "32px" }}>
-            {authMode === "login" ? "Entre para ver suas recomendações" : "Comece a descobrir filmes incríveis"}
+            {authMode === "login" ? "Entre para ver suas recomendações" : authMode === "cadastro" ? "Comece a descobrir filmes incríveis" : "Digite seu email e uma nova senha"}
           </p>
 
-          <div className="flex gap-1 p-1 rounded-xl mb-8" style={{ background: "var(--surface2)" }}>
-            {(["login", "cadastro"] as const).map(m => (
-              <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all"
-                style={{
-                  background: authMode === m ? "var(--surface)" : "transparent",
-                  color: authMode === m ? "var(--text)" : "var(--text3)",
-                  boxShadow: authMode === m ? "0 1px 4px rgba(0,0,0,0.3)" : "none"
-                }}>
-                {m === "login" ? "Entrar" : "Cadastrar"}
+          {/* Tabs */}
+          {authMode !== "reset" && (
+            <div className="flex gap-1 p-1 rounded-xl mb-8" style={{ background: "var(--surface2)" }}>
+              {(["login", "cadastro"] as const).map(m => (
+                <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); }}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                  style={{
+                    background: authMode === m ? "var(--surface)" : "transparent",
+                    color: authMode === m ? "var(--text)" : "var(--text3)",
+                    boxShadow: authMode === m ? "0 1px 4px rgba(0,0,0,0.3)" : "none"
+                  }}>
+                  {m === "login" ? "Entrar" : "Cadastrar"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {authMode === "reset" && (
+            <div style={{ marginBottom: "24px" }}>
+              <button onClick={() => { setAuthMode("login"); setAuthError(""); }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--accent2)", display: "flex", alignItems: "center", gap: "6px" }}>
+                ← Voltar ao login
               </button>
-            ))}
-          </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {authMode === "reset" && (
+              <div style={{ padding: "16px", borderRadius: "12px", background: "var(--accent-glow)", border: "1px solid rgba(124,106,247,0.2)" }}>
+                <p style={{ fontSize: "13px", color: "var(--accent2)", lineHeight: 1.6 }}>
+                  Digite seu email cadastrado e escolha uma nova senha. A alteração é imediata.
+                </p>
+              </div>
+            )}
+
             {authMode === "cadastro" && (
               <div>
                 <label style={{ display: "block", fontSize: "12px", color: "var(--text2)", marginBottom: "8px", fontWeight: 500 }}>Nome</label>
@@ -218,18 +252,22 @@ export default function App() {
                   className="input-field" style={{ padding: "12px 16px", borderRadius: "12px" }} />
               </div>
             )}
+
             <div>
               <label style={{ display: "block", fontSize: "12px", color: "var(--text2)", marginBottom: "8px", fontWeight: 500 }}>Email</label>
               <input type="email" placeholder="seu@email.com" value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                onKeyDown={e => e.key === "Enter" && handleAuth()}
+                onKeyDown={e => e.key === "Enter" && (authMode === "reset" ? handleReset() : handleAuth())}
                 className="input-field" style={{ padding: "12px 16px", borderRadius: "12px" }} />
             </div>
+
             <div>
-              <label style={{ display: "block", fontSize: "12px", color: "var(--text2)", marginBottom: "8px", fontWeight: 500 }}>Senha</label>
+              <label style={{ display: "block", fontSize: "12px", color: "var(--text2)", marginBottom: "8px", fontWeight: 500 }}>
+                {authMode === "reset" ? "Nova senha" : "Senha"}
+              </label>
               <input type="password" placeholder="••••••••" value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
-                onKeyDown={e => e.key === "Enter" && handleAuth()}
+                onKeyDown={e => e.key === "Enter" && (authMode === "reset" ? handleReset() : handleAuth())}
                 className="input-field" style={{ padding: "12px 16px", borderRadius: "12px" }} />
             </div>
 
@@ -239,11 +277,20 @@ export default function App() {
               </div>
             )}
 
-            <button onClick={handleAuth} disabled={authLoading}
+            <button onClick={authMode === "reset" ? handleReset : handleAuth} disabled={authLoading}
               className="btn-primary" style={{ padding: "14px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
               {authLoading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-              {authLoading ? "Aguarde..." : authMode === "login" ? "Entrar" : "Criar conta"}
+              {authLoading ? "Aguarde..." : authMode === "login" ? "Entrar" : authMode === "cadastro" ? "Criar conta" : "Redefinir senha"}
             </button>
+
+            {authMode === "login" && (
+              <button onClick={() => { setAuthMode("reset"); setAuthError(""); }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text3)", textAlign: "center", width: "100%", marginTop: "4px", transition: "color 0.2s" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "var(--accent2)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "var(--text3)")}>
+                Esqueceu sua senha?
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -465,7 +512,6 @@ export default function App() {
 
       <main style={{ flex: 1, paddingTop: "80px", paddingBottom: "100px", overflowY: "auto" }}>
         <div style={{ maxWidth: "760px", margin: "0 auto", padding: "24px" }}>
-
           {mensagens.length === 0 && (
             <div className="fade-up" style={{ textAlign: "center", padding: "60px 0 40px" }}>
               <div style={{ width: "64px", height: "64px", borderRadius: "20px", background: "var(--accent-glow)", border: "1px solid rgba(124,106,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
